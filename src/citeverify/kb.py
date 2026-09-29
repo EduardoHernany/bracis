@@ -115,12 +115,13 @@ def construir(db_path: str | Path) -> KB:
 
 
 def _assinatura(db_path: str | Path) -> str:
-    """Hash do código que constrói o KB + tamanho/mtime da base: cache velho nunca é reaproveitado."""
+    """Hash do código que constrói o KB + conteúdo da base: cache velho nunca é reaproveitado."""
     h = hashlib.sha256()
     for mod in ("kb.py", "aliases.py", "textnorm.py"):
         h.update((Path(__file__).parent / mod).read_bytes())
-    st = Path(db_path).stat()
-    h.update(f"{st.st_size}".encode())
+    with open(db_path, "rb") as f:
+        for bloco in iter(lambda: f.read(1 << 20), b""):
+            h.update(bloco)
     return h.hexdigest()[:12]
 
 
