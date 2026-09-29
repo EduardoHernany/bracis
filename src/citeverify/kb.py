@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .aliases import codigos, lei_canonica
-from .textnorm import RE_NUMERO, chave_numero
+from .textnorm import RE_NUMERO, H, chave_numero
 
 _RELATOR = re.compile(r"\bRELATORA?\b|\bRelatora?\b|\bRelator\s+origin", re.I)
 _CNJ_TST = r"(?:[A-Za-z]+\s*-\s*)*(\d{1,7}\s*-\s*\d{2}\s*\.\s*\d{4}\s*\.\s*5\s*\.\s*\d{2}\s*\.\s*\d{4})"
@@ -22,6 +22,18 @@ _CNJ_TST = r"(?:[A-Za-z]+\s*-\s*)*(\d{1,7}\s*-\s*\d{2}\s*\.\s*\d{4}\s*\.\s*5\s*\
 _TST_AUTOS = re.compile(r"\bautos\s+de\s+[^.]{0,200}?n\s*\.?\s*[º°o]s?\s*TST\s*-\s*" + _CNJ_TST, re.I | re.S)
 # rodapé "PROCESSO Nº TST-X" (último do documento); no corpo pode ser só citação
 _TST_PROCESSO = re.compile(r"PROCESSO\s*N[º°o]?\s*:?\s*TST\s*-\s*" + _CNJ_TST)
+_BARRAS = "/\u2044\u2215\uff0f"          # "/" e as barras de fração do STJ: "(2016⁄0199049-5)"
+_MESES = "janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro"
+_LETRA = re.compile(r"[A-Za-zÀ-ÿ]")
+
+# registros cujo cabeçalho está corrompido pelo OCR: o número real aparece dezenas de vezes no próprio texto
+# (conferido com scripts/kb_audit.py; nenhum outro registro usa essas chaves)
+CHAVES_MANUAIS = {
+    568736504: {"185-05.2016.6.25.0024"},    # TSE, cabeçalho "Nº 185-05. 20.16.6. , 250024"
+    576309534: {"598-49.2012.6.08.0018"},    # TSE, cabeçalho "Nº 598- 2012 6 08 0018 - CLASSE 32 49"
+    2381771667: {"234-73.2016.7.11.0211"},   # STM, começa pelo "EXTRATO DA ATA"; é a APELAÇÃO Nº 234-73…
+}
+CLASSES_MANUAIS = {2381771667: ["APL"]}
 
 
 @dataclass
@@ -56,13 +68,23 @@ def _chaves_cabecalho(cab: str) -> set[str]:
     for m in RE_NUMERO.finditer(cab):
         s, e = m.start(), m.end()
         antes, depois = cab[max(0, s - 1):s], cab[e:e + 1]
-        if "/" in antes or "/" in depois:            # datas e o "(2018/0116304-1)" do STJ
+        if any(b in antes + depois for b in _BARRAS):          # datas e o "(2018/0116304-1)" do STJ
             continue
         if re.search(r"CLASSE\s*$", cab[max(0, s - 8):s], re.I):
             continue
+        if re.search(r"(?:R\$\s*[\d.,]*|OAB[\s:/\-]*)\s*$", cab[max(0, s - 20):s]):   # valor da causa, OAB
+            continue
+        if _LETRA.match(antes) or _LETRA.match(depois):        # colado a letra: lixo de OCR ("20s", "52a SESSÃO")
+            continue
+        if (re.match(rf"{H}+DE{H}+(?:{_MESES})\b", cab[e:], re.I)
+                or re.search(rf"\b(?:{_MESES}){H}+DE{H}+$", cab[:s], re.I)):   # data por extenso
+            continue
         k = chave_numero(m.group())
-        if k and len(re.sub(r"\D", "", m.group())) >= 2:
-            out.add(k[0])
+        if not k or len(re.sub(r"\D", "", m.group())) < 2 or k[0] == "0":
+            continue
+        if k[1] is None and len(k[0]) <= 4 and re.search(r"[^\d\s.\-]", m.group()):   # curto e com letra-OCR
+            continue
+        out.add(k[0])
     return out
 
 
@@ -105,6 +127,9 @@ def construir(db_path: str | Path) -> KB:
             m = re.search(r"N[º°]\s*(" + RE_NUMERO.pattern + ")", texto[:3000])
             if m:
                 r.chaves.add(chave_numero(m.group(1))[0])
+        if rid in CHAVES_MANUAIS:
+            r.chaves = set(CHAVES_MANUAIS[rid])
+        r.classes = CLASSES_MANUAIS.get(rid, r.classes)
         for k in r.chaves:
             por_chave[k].add(rid)
         for m in RE_NUMERO.finditer(texto):

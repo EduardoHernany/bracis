@@ -31,4 +31,14 @@ def processar(documento_id: str, texto: str, kb: KB, debug: bool = False) -> dic
             item["_regra"] = d.regra
             item["_kind"] = c.kind
         citacoes.append(item)
-    return {"documento_id": documento_id, "citacoes": citacoes}
+    return {"documento_id": documento_id, "citacoes": sem_sobreposicao(citacoes)}
+
+
+def sem_sobreposicao(citacoes: list[dict]) -> list[dict]:
+    """Rede de segurança: duas predições sobrepostas (IoU >= 0,5) invalidam a submissão inteira."""
+    out: list[dict] = []
+    for c in sorted(citacoes, key=lambda c: (c["inicio"], -c["fim"])):
+        if out and c["inicio"] < out[-1]["fim"]:
+            continue
+        out.append(c)
+    return out

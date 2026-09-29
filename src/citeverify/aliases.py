@@ -157,8 +157,10 @@ CADEIA = (rf"(?:{ORDINAL}\s+)?{_ATOMO_SIMPLES}"
           rf"(?:{CONECTOR}(?:{ORDINAL}\s+)?{_ATOMO_SIMPLES})*")
 RE_ATOMO = re.compile(ATOMO, re.I)
 
+# siglas com o S↔5 do OCR também no início da palavra ("5TF", "T5E")
+_TRIB_SIGLA = {"STF": "[S5]TF", "STJ": "[S5]TJ", "TSE": "T[S5]E", "TST": "T[S5]T", "STM": "[S5]TM"}
 TRIB = r"(?:" + "|".join(
-    [f"(?P<t_{t}>(?-i:{t}\\b)|{_alt([frase(x) for x in _TRIB_EXTENSO[t]])})" for t in TRIBUNAIS]) + r")"
+    [f"(?P<t_{t}>(?-i:{_TRIB_SIGLA[t]}\\b)|{_alt([frase(x) for x in _TRIB_EXTENSO[t]])})" for t in TRIBUNAIS]) + r")"
 _TRIB_SIMPLES = re.sub(r"\(\?P<\w+>", "(?:", TRIB)
 RE_TRIB = re.compile(TRIB, re.I)
 
@@ -187,9 +189,11 @@ def tribunal_de(texto: str) -> str | None:
 # código canônico da lei → formas de citação
 LEIS = {
     "CF": ["constituição federal de 1988", "constituição federal", "constituição da república federativa do brasil",
-           "constituição da república", "carta magna", "constituição", "(?-i:CF/88)", "(?-i:CF/1988)", "(?-i:CRFB/88)",
+           "constituição da república", "carta magna", "carta da república", "carta política", "lei maior",
+           "texto constitucional", "constituição", "(?-i:CF/88)", "(?-i:CF/1988)", "(?-i:CRFB/88)",
            "(?-i:CRFB)", "(?-i:CF)"],
-    "L13105/2015": ["código de processo civil", "(?-i:CPC/2015)", "(?-i:CPC/15)", "(?-i:NCPC)", "(?-i:CPC)"],
+    "L13105/2015": ["novo código de processo civil", "código de processo civil", "novo cpc", "(?-i:CPC/2015)",
+                    "(?-i:CPC/15)", "(?-i:NCPC)", "(?-i:CPC)"],
     "DL3689/1941": ["código de processo penal", "(?-i:CPP)"],
     "L10406/2002": ["código civil", "(?-i:CC/2002)", "(?-i:CC)"],
     "DL5452/1943": ["consolidação das leis do trabalho", "(?-i:CLT)"],

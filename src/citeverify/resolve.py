@@ -69,7 +69,7 @@ def _numerada(c: Candidata, kb: KB) -> Decisao | None:
     if not k:
         return None
     chave, j = k
-    cods = codigos(g["cadeia"])
+    cods = codigos(g["cadeia"]) + codigos(g.get("sufixo") or "")
     principal = _principal(cods)
     trib = None
     if g.get("trib"):
@@ -98,7 +98,9 @@ def _numerada(c: Candidata, kb: KB) -> Decisao | None:
 def _sumula(c: Candidata, kb: KB) -> Decisao:
     g = c.grupos
     num = int(g["num"])
-    vinc = bool(g.get("vinc"))
+    if g.get("outro"):     # súmula de TJ/TRF/TRT/TRE/TNU/TCU: fora da base, nunca real
+        return Decisao("inventada", "jurisprudencia", None, CONF["sumula_inventada"], "sumula_outro_tribunal")
+    vinc = bool(g.get("vinc") or g.get("sv"))
     trib = tribunal_de(g["trib"]) if g.get("trib") else ("STF" if vinc else None)
     if trib:
         rid = kb.sumulas.get((trib, num, vinc))
@@ -113,12 +115,23 @@ def _sumula(c: Candidata, kb: KB) -> Decisao:
     return Decisao("incompleta", "jurisprudencia", None, CONF["sumula_ambigua"], "sumula_ambigua")
 
 
+def _outra_versao(lei: str, ano: str | None) -> bool:
+    """'CPC/73', 'CC/16': o código citado não é o da base (L13105/2015, L10406/2002…)."""
+    if not ano or "/" not in lei:
+        return False
+    if len(ano) == 2:
+        ano = ("19" if int(ano) > 30 else "20") + ano
+    return not lei.endswith(ano)
+
+
 def _lei(c: Candidata, kb: KB) -> Decisao | None:
     g = c.grupos
     lei = lei_canonica(g["lei"])
     if not lei:
         return None
     art = int(re.sub(r"\D", "", digitos(g["num"])) or 0)
+    if g.get("suf") or _outra_versao(lei, g.get("leiano")):
+        return Decisao("inventada", "lei", None, CONF["lei_inventada"], "dispositivo_ausente")
     rid = kb.dispositivos.get((lei, art))
     if rid:
         return Decisao("real", "lei", rid, CONF["lei_real"], "dispositivo")

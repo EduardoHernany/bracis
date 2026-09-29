@@ -21,17 +21,23 @@ OCR_DIGITO = {
 _LET = "OoQDlIi|!SsgqBGbZz"
 _LETRA = r"A-Za-zÀ-ÿ"
 
-# um "caractere de número": dígito, ou letra-OCR colada a um dígito e sem letra do outro lado
+# espaços horizontais (inclusive NBSP e espaços finos) e hífens (inclusive o não-quebrável e o sinal de menos)
+H = r"[ \t\u00a0\u2007\u202f]"
+_HIFENS = "\u2010\u2011\u2012\u2013\u2014\u2212"
+_D = rf"[.\-{_HIFENS}]"
+# um "caractere de número": dígito, ou letra-OCR colada a um dígito (ou a separador + dígito) sem letra do outro lado
 _CH = (rf"(?:\d|(?<=\d)[{re.escape(_LET)}](?![{_LETRA}])"
-       rf"|(?<![{_LETRA}])[{re.escape(_LET)}](?=\d))")
-# separadores que o gerador usa dentro do número: . - – — espaço e quebra de linha
-_SEP = r"(?:[ \t]*[.\-–—][ \t]*(?:\n[ \t]*)?(?:[.\-–—][ \t]*(?:\n[ \t]*)?)?|[ \t]*\n[ \t]*|[ \t]{1,2})"
+       rf"|(?<![{_LETRA}])[{re.escape(_LET)}](?=\d)"
+       rf"|(?<![{_LETRA}\d])[{re.escape(_LET)}](?={_D}\d))")
+# separadores que o gerador usa dentro do número: . e hífens, espaço e quebra de linha (antes ou depois do separador)
+_NL = rf"(?:\n{H}*)?"
+_SEP = rf"(?:{H}*{_NL}{_D}{H}*{_NL}(?:{_D}{H}*{_NL})?|{H}*\n{H}*|{H}{{1,2}})"
 NUMERO = rf"{_CH}+(?:{_SEP}{_CH}+)*"
 RE_NUMERO = re.compile(NUMERO)
 
 
 def digitos(trecho: str) -> str:
-    """Só os dígitos do trecho, com letras-OCR convertidas."""
+    """Só os dígitos do trecho, com letras-OCR convertidas (coladas a dígito, ou antes de separador + dígito)."""
     out = []
     for i, ch in enumerate(trecho):
         if ch.isdigit():
@@ -39,7 +45,8 @@ def digitos(trecho: str) -> str:
         elif ch in OCR_DIGITO:
             ant = trecho[i - 1] if i > 0 else ""
             prox = trecho[i + 1] if i + 1 < len(trecho) else ""
-            if ant.isdigit() or prox.isdigit():
+            prox2 = trecho[i + 2] if i + 2 < len(trecho) else ""
+            if ant.isdigit() or prox.isdigit() or (prox != "" and prox in ".-" + _HIFENS and prox2.isdigit() and not ant.isalpha()):
                 out.append(OCR_DIGITO[ch])
     return "".join(out)
 

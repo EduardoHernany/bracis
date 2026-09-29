@@ -107,3 +107,105 @@ def test_lei(kb):
 def test_tst(kb):
     c = _unica(kb, "Conforme o processo nº TST-E-RR-173000-49.2008.5.15.0024, a matéria")
     assert c["classificacao"] == "real"
+
+
+# ----------------------------------------------------------------------------- v2: lacunas do conjunto cego
+
+@pytest.mark.parametrize("trecho,chave", [
+    ("0600216-46.2020\n.6.14.0022", "600216-46.2020.6.14.0022"),    # \n antes do separador
+    ("1.880\n.529", "1880529"),
+    ("7000171\n--39.2023.7.00.0000", "7000171-39.2023.7.00.0000"),
+    ("1\xa0307\xa0026", "1307026"),                                 # NBSP como separador de milhar
+    ("7000171‑39.2023.7.00.0000", "7000171-39.2023.7.00.0000"),  # hífen não-quebrável
+    ("l.741.784", "1741784"),                                       # letra-OCR no primeiro dígito
+])
+def test_separadores_v2(trecho, chave):
+    assert chave_numero(trecho)[0] == chave
+
+
+def test_real_com_nbsp_e_quebra(kb):
+    assert _unica(kb, "Vale invocar o Rec. Esp. nº 1.880\n.529 - SP, de clareza solar.")["resolucao"]["id_canonico"] == "1915411053"
+    assert _unica(kb, "Vale invocar o Rec. Esp. nº 1\xa0880\xa0529/SP, de clareza solar.")["resolucao"]["id_canonico"] == "1915411053"
+
+
+@pytest.mark.parametrize("texto", [
+    "Advogado: Fulano de Tal (OAB/MS 12.345).", "Advogada: Beltrana (OAB-RO 4321).", "OAB/AC nº 1.234",
+    "inscrito na OAB/AP 998", "OAB RR 1234", "Campo Grande/MS, 12 de março de 2024.",
+    "Rio Branco - AC, 3 de junho de 2024.", "residente na Rua das Flores, nº 100, Ap. 302, Centro",
+])
+def test_distratores_v2(texto):
+    assert extrair(texto) == []
+
+
+def test_mandado_de_seguranca_nao_e_uf(kb):
+    assert len(processar("t", "Veja-se o MS 12.345/DF, de clareza solar.", kb)["citacoes"]) == 1
+    assert len(processar("t", "Veja-se a Rcl 33.132/AC, cuja ratio se aplica.", kb)["citacoes"]) == 1
+
+
+def test_cabecalho_proprio(kb):
+    texto = ("EXCELENTÍSSIMO SENHOR MINISTRO RELATOR\n\nAUTOS DO PROCESSO Nº 1292746-27.2020.7.13.1173\n"
+             "Ref.: Autos nº 1292746-27.2020.7.13.1173\nClasse: Apelação Criminal nº 1292746-27.2020.7.13.1173\n"
+             "RECURSO ESPECIAL Nº 1.205.500 - SC (2019/0123456-7)\n\nMEMORIAL\n\n"
+             "Cuida-se de apelação interposta contra a sentença que julgou procedente a ação penal, conforme segue.\n"
+             "Nos autos do processo nº 1292746-27.2020.7.13.1173, em trâmite, a defesa sustenta a nulidade. "
+             "Reforça o argumento o AgRg no Rec. Esp. n. 1.522.200 (SC), de resto conhecido.\n")
+    cits = processar("t", texto, kb)["citacoes"]
+    assert [c["trecho"] for c in cits] == ["AgRg no Rec. Esp. n. 1.522.200 (SC)"]
+
+
+def test_zona_cabecalho_dev():
+    import csv
+    from citeverify.extract import zona_cabecalho
+    gold = RAIZ / "data" / "goldenset_offsets.csv"
+    if not gold.exists():
+        pytest.skip("gabarito ausente")
+    primeiro = {}
+    for r in csv.DictReader(open(gold, encoding="utf-8-sig")):
+        primeiro[r["documento_id"]] = min(primeiro.get(r["documento_id"], 10**9), int(r["inicio"]))
+    for doc, ini in primeiro.items():
+        texto = open(RAIZ / "data" / "txt" / f"{doc}.txt", encoding="utf-8", newline="").read()
+        assert zona_cabecalho(texto) <= ini, doc
+
+
+@pytest.mark.parametrize("texto,fim", [
+    ("o julgado do 5TF proferido em 2024 pela relatoria de Dias Toffoli, no ponto", "Toffoli"),
+    ("o precedente do STJ de 2020, da relatoria de lsabel Gallotti, no ponto", "Gallotti"),
+    ("o julgado do STF proferido em 2O19 pela relatoria de Dias Toffoli, no ponto", "Toffoli"),
+])
+def test_incompleta_ocr_inicial(kb, texto, fim):
+    c = _unica(kb, texto)
+    assert c["classificacao"] == "incompleta" and c["trecho"].endswith(fim)
+
+
+def test_kb_sem_chaves_espurias(kb):
+    for k in ["0", "11", "14", "111", "205", "201", "417", "2010", "2015", "2016", "2017", "1465857", "1990495"]:
+        assert k not in kb.por_chave, k
+    assert kb.por_chave["185-05.2016.6.25.0024"] == {568736504}
+    assert kb.por_chave["598-49.2012.6.08.0018"] == {576309534}
+    assert kb.por_chave["234-73.2016.7.11.0211"] == {2381771667}
+    assert "2785" in kb.por_chave and "2883" in kb.por_chave
+
+
+@pytest.mark.parametrize("texto,classe", [
+    ("Incide a Súmula 83 do TJSP.", "inventada"),           # τ: tribunal fora da base
+    ("Incide a Súmula 83 do TRF-1.", "inventada"),
+    ("Incide o art. 896-A da CLT.", "inventada"),           # artigo com sufixo não é o 896
+    ("Incide o art. 373 do CPC/73.", "inventada"),          # CPC revogado não é o da base
+    ("Incide o art. 373 do CPC.", "real"),
+    ("Incide o art. 93, IX, CF/88.", "real"),
+    ("Incide o art. 5º da Lei Maior.", "real"),
+    ("Incide a Súmula 331, IV, do TST.", "real"),
+    ("Incide a SV 10.", "real"),
+    ("Incide o Enunciado 83 da Súmula do STJ.", "real"),
+    ("Incide a Súmula do STJ nº 83.", "real"),
+    ("Incide o Tema Repetitivo 1.076.", "inventada"),
+])
+def test_variantes_v2(kb, texto, classe):
+    assert _unica(kb, texto)["classificacao"] == classe
+
+
+def test_spans_v2(kb):
+    assert _unica(kb, "Incide a Súmula 331, IV, do TST.")["trecho"] == "Súmula 331, IV, do TST"
+    assert _unica(kb, "Veja-se o ARE 1.465.332-AgR-segundo/SP, no ponto.")["trecho"] == "ARE 1.465.332-AgR-segundo/SP"
+    c = _unica(kb, "Como se depreende do prócesso nº TST-E-RR-173000-49.2008.5.15.0024, a matéria")
+    assert c["trecho"] == "prócesso nº TST-E-RR-173000-49.2008.5.15.0024" and c["classificacao"] == "real"
