@@ -26,6 +26,7 @@ CONF = {
     "tema": 0.9,
     "incompleta": 0.97,
     "incompleta_parcial": 0.8,
+    "vaga": 0.97,
 }
 
 _ACESSORIAS = {"AgRg", "AgInt", "EDcl", "Ag", "QO", "PExt", "TST", "EDiv"}
@@ -150,6 +151,8 @@ def decidir(c: Candidata, kb: KB) -> Decisao | None:
         return _lei(c, kb)
     if c.kind == "tema":
         return Decisao("inventada", "jurisprudencia", None, CONF["tema"], "tema")
+    if c.kind == "vaga":
+        return Decisao("incompleta", c.grupos["tipo"], None, CONF["vaga"], "vaga")
     if c.kind == "incompleta":
         completa = c.grupos.get("ano") and c.grupos.get("nome")
         return Decisao("incompleta", "jurisprudencia", None,

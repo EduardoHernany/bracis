@@ -2,7 +2,7 @@ PY ?= python3
 TXT ?= data/txt
 OUT ?= out/final
 
-.PHONY: data reproduce dev stress test clean
+.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models
 
 # baixa os dados da competição (exige KAGGLE_TOKEN no ambiente)
 data:
@@ -13,6 +13,27 @@ data:
 reproduce:
 	$(PY) scripts/run.py $(TXT) $(OUT)
 	sha256sum $(OUT)/submission.csv
+
+# variante V: também emite as frases vagas como incompleta (convenção da página de Dados do Kaggle)
+reproduce-vagas:
+	$(PY) scripts/run.py $(TXT) $(OUT)-vagas --vagas
+	sha256sum $(OUT)-vagas/submission.csv
+
+# confere as frases vagas contra as lacunas de citacao_id do gabarito (17 no N1, 16 no N2)
+vagas-check:
+	$(PY) scripts/vagas_check.py
+
+# audita as chaves do KB (o que identifica cada acórdão)
+kb-audit:
+	$(PY) scripts/kb_audit.py --curtas
+
+# vigia a publicação do conjunto cego (exige KAGGLE_TOKEN); prepara R e V, não submete
+blind-watch:
+	$(PY) scripts/blind.py watch --interval 120 --release-dir release
+
+# pesos das camadas opcionais (S1 Laya, S2 Qwen), na revisão de models.lock.json
+fetch-models:
+	$(PY) scripts/fetch_models.py all
 
 # avaliação na amostra de desenvolvimento (gabarito aberto), com a métrica oficial
 dev:

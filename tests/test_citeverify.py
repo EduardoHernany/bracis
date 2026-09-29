@@ -209,3 +209,29 @@ def test_spans_v2(kb):
     assert _unica(kb, "Veja-se o ARE 1.465.332-AgR-segundo/SP, no ponto.")["trecho"] == "ARE 1.465.332-AgR-segundo/SP"
     c = _unica(kb, "Como se depreende do prócesso nº TST-E-RR-173000-49.2008.5.15.0024, a matéria")
     assert c["trecho"] == "prócesso nº TST-E-RR-173000-49.2008.5.15.0024" and c["classificacao"] == "real"
+
+
+# ----------------------------------------------------------------------------- v2: frases vagas (--vagas)
+
+def test_vaga_so_com_flag(kb):
+    texto = "Reforça o argumento a jurisprudência pacífica desta Corte, de resto amplamente conhecida no foro."
+    assert processar("t", texto, kb)["citacoes"] == []
+    c = processar("t", texto, kb, vagas=True)["citacoes"]
+    assert [(x["trecho"], x["classificacao"]) for x in c] == [("jurisprudência pacífica desta Corte", "incompleta")]
+
+
+def test_vaga_generaliza_pelo_slot(kb):
+    texto = "Vale invocar o entendimento consolidado da Corte Especial, de clareza solar quanto ao ponto."
+    c = processar("t", texto, kb, vagas=True)["citacoes"]
+    assert [x["trecho"] for x in c] == ["entendimento consolidado da Corte Especial"]
+
+
+def test_vaga_nao_pega_frase_de_enchimento(kb):
+    texto = "Cumpre observar que a orientação dos tribunais superiores é firme no ponto. Nada mais."
+    assert processar("t", texto, kb, vagas=True)["citacoes"] == []
+
+
+def test_vaga_nao_duplica_citacao_real(kb):
+    texto = "Reforça o argumento o AgRg no Rec. Esp. n. 1.522.200 (SC), de resto conhecido."
+    c = processar("t", texto, kb, vagas=True)["citacoes"]
+    assert [x["classificacao"] for x in c] == ["real"]

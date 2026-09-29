@@ -4,6 +4,7 @@ from pathlib import Path
 from .extract import extrair
 from .kb import KB
 from .resolve import decidir
+from .vagas import extrair_vagas
 
 
 def ler_texto(caminho: str | Path) -> str:
@@ -12,9 +13,13 @@ def ler_texto(caminho: str | Path) -> str:
         return f.read()
 
 
-def processar(documento_id: str, texto: str, kb: KB, debug: bool = False) -> dict:
+def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas: bool = False) -> dict:
+    """vagas=True também emite as frases vagas ("jurisprudência pacífica desta Corte") como `incompleta`."""
     citacoes = []
-    for c in extrair(texto):
+    cands = extrair(texto)
+    if vagas:
+        cands += extrair_vagas(texto, [(c.inicio, c.fim) for c in cands])
+    for c in cands:
         d = decidir(c, kb)
         if d is None:
             continue

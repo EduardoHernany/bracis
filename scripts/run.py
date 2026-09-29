@@ -1,6 +1,6 @@
 """Roda o pipeline completo: pasta de .txt → um JSON por documento + submission.csv.
 
-Uso:  python scripts/run.py <pasta_txt> <pasta_saida> [--db data/desafio1_bracis.db] [--debug]
+Uso:  python scripts/run.py <pasta_txt> <pasta_saida> [--db data/desafio1_bracis.db] [--vagas] [--debug]
 """
 import argparse
 import json
@@ -22,13 +22,15 @@ def main() -> None:
     ap.add_argument("--db", default=str(RAIZ / "data" / "desafio1_bracis.db"))
     ap.add_argument("--cache", default=str(RAIZ / "out" / "kb.pkl"))
     ap.add_argument("--debug", action="store_true")
+    ap.add_argument("--vagas", action="store_true",
+                    help="emite também as frases vagas como incompleta (convenção da página de Dados)")
     a = ap.parse_args()
 
     kb = carregar(a.db, a.cache)
     saida = Path(a.saida)
     (saida / "json").mkdir(parents=True, exist_ok=True)
     for txt in sorted(Path(a.txt).glob("*.txt")):
-        doc = processar(txt.stem, ler_texto(txt), kb, debug=a.debug)
+        doc = processar(txt.stem, ler_texto(txt), kb, debug=a.debug, vagas=a.vagas)
         (saida / "json" / f"{txt.stem}.json").write_text(
             json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     subprocess.run([sys.executable, str(RAIZ / "vendor" / "json_to_submission.py"),
