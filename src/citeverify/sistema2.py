@@ -9,7 +9,7 @@ uma citação do S1: qualquer sobreposição descarta a proposta.
 import re
 
 from .aliases import RE_ATOMO, RE_TRIB
-from .extract import Candidata, _aparar, _candidatas, zona_cabecalho
+from .extract import Candidata, _aparar, _candidatas, _eh_distrator, chaves_proprias, zona_cabecalho
 from .frases import segmentar
 from .kb import KB
 from .resolve import Decisao, _d, _numerada, decidir
@@ -91,6 +91,12 @@ def ancorar(texto: str, a: int, b: int, trecho: str) -> tuple[int, int] | None:
 def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Candidata, Decisao] | None:
     """Decide um trecho proposto pelo LLM. Primeiro tenta os regex do S1 dentro dele; senão, regras mínimas."""
     trecho = texto[ini:fim]
+    # os mesmos filtros de distrator do S1: número do próprio processo (cabeçalho), OAB, cidade/UF, data
+    proprias = chaves_proprias(texto, zona_cabecalho(texto))
+    for m in RE_NUMERO.finditer(trecho):
+        k = chave_numero(m.group())
+        if k and k[0] in proprias:
+            return None
     # 1) um candidato do S1 que cubra ≥ 80% do trecho (o LLM achou o que a frase escondia do regex)
     melhor = None
     for c in _candidatas(trecho):
@@ -99,6 +105,8 @@ def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Can
             melhor = c
     if melhor:
         c = Candidata(ini + melhor.inicio, ini + melhor.fim, melhor.kind, melhor.grupos, melhor.prioridade)
+        if _eh_distrator(texto, c):
+            return None
         d = decidir(c, kb)
         if d:
             return c, d
@@ -135,7 +143,10 @@ def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Can
         return c, _d("incompleta", "jurisprudencia", None, "s2_incompleta")
     # 4) referência vaga (só na convenção V)
     # como as frases vagas do gabarito: sintagma nominal curto (até 8 palavras), sem vírgula (não é descrição)
-    if vagas and _NUCLEO_SIMPLES.search(trecho) and 2 <= len(trecho.split()) <= 8 and "," not in trecho:
+    # "acórdão recorrido", "decisão agravada": é o ato atacado, não uma fonte invocada
+    ato_atacado = re.search(r"(?i)\b(?:recorrid|agravad|impugnad|hostilizad|embargad|guerread)[oa]s?\b", trecho)
+    if (vagas and not ato_atacado and _NUCLEO_SIMPLES.search(trecho) and 2 <= len(trecho.split()) <= 8
+            and "," not in trecho):
         tipo = "lei" if re.search(r"(?i)dispositiv|\blei|legisla|norma|artigo|preceito|diploma|c[óo]digo", trecho) \
             else "jurisprudencia"
         c = Candidata(ini, fim, "vaga", {"tipo": tipo}, 0)

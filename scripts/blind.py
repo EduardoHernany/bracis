@@ -16,6 +16,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -122,12 +123,18 @@ def rodar_variantes(entrada: Path, db: Path, saida: Path, release: Path,
     tem_vagas = "--vagas" in run.read_text(encoding="utf-8")
     # cache do KB amarrado ao conteúdo da base: uma base nova nunca reaproveita o índice velho
     cache = RAIZ / "out" / "blind" / f"kb-{sha256(db)[:12]}.pkl"
-    variantes = [("R", [])] + ([("V", ["--vagas"])] if tem_vagas else [])
+    variantes = [("R", [], sys.executable)] + ([("V", ["--vagas"], sys.executable)] if tem_vagas else [])
+    # V+S2 (opcional): só se a release tiver o S2 e houver o env ML e o GGUF; roda depois de R e V (é mais lento)
+    gguf = RAIZ / "models" / "s2" / "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+    py_ml = Path(os.environ.get("CITEVERIFY_ML_PY", Path.home() / "miniforge3/envs/citeverify-ml/bin/python"))
+    if tem_vagas and "--s2" in run.read_text(encoding="utf-8") and gguf.exists() and py_ml.exists():
+        variantes.append(("VS2", ["--vagas", "--s2", str(gguf), "--s2-gpu-layers", os.environ.get("S2_GPU_LAYERS", "-1"),
+                                  "--s2-cache", str(RAIZ / "out" / "blind" / "s2_cache.jsonl")], str(py_ml)))
     res = []
-    for nome, extra in variantes:
+    for nome, extra, python in variantes:
         destino = saida / nome
         t0 = time.time()
-        p = subprocess.run([sys.executable, str(run), str(entrada), str(destino), "--db", str(db),
+        p = subprocess.run([python, str(run), str(entrada), str(destino), "--db", str(db),
                             "--cache", str(cache), *extra],
                            capture_output=True, text=True)
         item = {"variante": nome, "retorno": p.returncode, "segundos": round(time.time() - t0, 1),
@@ -164,7 +171,8 @@ def escrever_status(saida: Path, cabecalho: list[str], res: list[dict], release:
         for r in prontas:
             linhas.append(f"KAGGLE_TOKEN=... python3 scripts/kaggle.py submit {r['csv'].relative_to(RAIZ)} "
                           f"\"citeverify v2 {r['variante']}\"")
-        linhas += ["```", "", "Depois compare R e V no LB público: V − R > 0,02 → o gabarito inclui as frases vagas;",
+        linhas += ["```", "", "VS2 (V + Sistema 2/LLM) só vale se o LB mostrar que a convenção V é a certa.",
+                   "Depois compare R e V no LB público: V − R > 0,02 → o gabarito inclui as frases vagas;",
                    "R − V > 0,02 → não inclui; diferença menor → selecione as duas."]
     status = saida / "STATUS.md"
     status.write_text("\n".join(linhas) + "\n", encoding="utf-8")

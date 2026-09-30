@@ -93,3 +93,11 @@ def test_s2_descarta_parafrase(kb):
     duble = Duble({"Tal": ["STF, 2024, relatoria de Dias Toffoli"]})   # paráfrase: não ancora
     c = processar("t", t, kb, s2=duble)["citacoes"]
     assert [x["trecho"] for x in c] == ["julgado do STF proferido em 2024 pela relatoria de Dias Toffoli"]
+
+
+def test_s2_respeita_numero_proprio_e_ato_atacado(kb):
+    t = ("Processo nº 7914012-80.2011.6.01.8633\n\nPARECER\n\n" + CORPO +
+         "Invoca-se, ainda, a  Nos autos do processo nº 7914012-80.2011.6.01.8633, em trâmite, a defesa reiterou. "
+         "O acórdão recorrido diverge frontalmente do que assentado na origem.")
+    duble = Duble({"Nos autos": ["processo nº 7914012-80.2011.6.01.8633"], "O acórdão": ["acórdão recorrido"]})
+    assert processar("t", t, kb, s2=duble, vagas=True)["citacoes"] == []
