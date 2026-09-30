@@ -235,3 +235,17 @@ def test_vaga_nao_duplica_citacao_real(kb):
     texto = "Reforça o argumento o AgRg no Rec. Esp. n. 1.522.200 (SC), de resto conhecido."
     c = processar("t", texto, kb, vagas=True)["citacoes"]
     assert [x["classificacao"] for x in c] == ["real"]
+
+
+@pytest.mark.parametrize("trecho,chave", [
+    ("70007BO--27.2020.7.00.0000", "7000780-27.2020.7.00.0000"),   # duas letras-OCR seguidas
+    ("8gg24", "89924"),
+    ("7000966--84.2019.7.00.OO00", "7000966-84.2019.7.00.0000"),
+])
+def test_ocr_sequencia(trecho, chave):
+    assert chave_numero(trecho)[0] == chave
+
+
+def test_sumula_numero_ocr(kb):
+    assert _unica(kb, "Incide a SÚMULA B3 do STJ.")["resolucao"]["id_canonico"] == "1289710642"
+    assert _unica(kb, "Incide a Súm. 21l do STJ.")["resolucao"]["id_canonico"] == "1289710776"

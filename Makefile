@@ -2,7 +2,7 @@ PY ?= python3
 TXT ?= data/txt
 OUT ?= out/final
 
-.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models
+.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models adv calib
 
 # baixa os dados da competição (exige KAGGLE_TOKEN no ambiente)
 data:
@@ -52,6 +52,19 @@ stress:
 	  $(PY) scripts/run.py out/hd$$s/txt out/hd$$s-pred > /dev/null && \
 	  echo "hard seed $$s" && $(PY) scripts/evaluate.py out/hd$$s-pred/submission.csv --gold out/hd$$s/gold.csv --erros; \
 	done
+
+# estresse adversarial: moldes, distratores e ruídos que o dev não mostra (+ gabarito V das frases vagas)
+adv:
+	@test -f out/vagas/vagas_dev.csv || $(PY) scripts/vagas_check.py > /dev/null
+	@for s in 21 22 23 24; do \
+	  $(PY) scripts/stress_gen.py --n 4 --seed $$s --adv --vagas-gold out/vagas/vagas_dev.csv --out out/adv$$s > /dev/null && \
+	  $(PY) scripts/run.py out/adv$$s/txt out/adv$$s-pred > /dev/null && \
+	  echo "adv seed $$s" && $(PY) scripts/evaluate.py out/adv$$s-pred/submission.csv --gold out/adv$$s/gold.csv --erros; \
+	done
+
+# recalibra a confiança por regra (grava src/citeverify/conf_calibrada.py)
+calib:
+	$(PY) scripts/calibrate.py --sets dev,devV,st1-8,hd11-13,adv21-24
 
 test:
 	$(PY) -m pytest -q tests

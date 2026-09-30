@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass, field
 
 from .aliases import CADEIA, DO, EM, LEI, UF, UFS, _TRIB_SIMPLES
-from .textnorm import NUMERO, RE_NUMERO, H, chave_numero, frase, fuzzy
+from .textnorm import CH, NUMERO, RE_NUMERO, H, chave_numero, frase, fuzzy
 
 
 @dataclass
@@ -50,21 +50,22 @@ _OUTRO_TRIB = (rf"(?:(?-i:TJ[A-Z]{{2,3}}|TRF{H}?-?{H}?\d|TRT{H}?-?{H}?\d{{1,2}}|
                rf"|{frase('tribunal de contas')})")
 _SUM_TRIB = rf"(?:(?P<trib>{_TRIB_SIMPLES})|(?P<outro>{_OUTRO_TRIB}))"
 _ITEM = rf"(?:\s*,\s*(?:{fuzzy('item')}\s+)?{_ROMANO}(?:\s*,)?)"
+_NUM_SUMULA = rf"(?=\S{{0,3}}\d)(?:{CH}){{1,4}}(?![\d.]\d)(?![A-Za-zÀ-ÿ])"   # "83", "B3", "21l"
 RE_SUMULA = re.compile(
     rf"(?<![A-Za-zÀ-ÿ])(?:(?P<sv>(?-i:SV))\.?|{_SUMULA}(?:\s*(?:{_MARCADOR}\s*)?(?P<vinc>{fuzzy('vinculante')}))?)"
-    rf"\s*(?:{_MARCADOR}\s*)?(?P<num>\d{{1,4}}(?![\d.]\d)){_ITEM}?"
+    rf"\s*(?:{_MARCADOR}\s*)?(?P<num>{_NUM_SUMULA}){_ITEM}?"
     rf"(?:\s*(?:,\s*)?(?:{DO}\s+(?:{_QUALIF}\s*)?|/\s*){_SUM_TRIB})?",
     re.I)
 # "Enunciado 83 da Súmula do STJ", "verbete 10 da Súmula Vinculante"
 RE_SUMULA_ENUNCIADO = re.compile(
-    rf"(?<![A-Za-zÀ-ÿ])(?:{frase('enunciado')}|{frase('verbete')})\s*(?:{_MARCADOR}\s*)?(?P<num>\d{{1,4}})(?![\d.]\d)"
+    rf"(?<![A-Za-zÀ-ÿ])(?:{frase('enunciado')}|{frase('verbete')})\s*(?:{_MARCADOR}\s*)?(?P<num>{_NUM_SUMULA})"
     rf"\s+{DO}\s+{fuzzy('súmula')}(?:\s+(?P<vinc>{fuzzy('vinculante')}))?"
     rf"(?:\s*,?\s*{DO}\s+(?:{_QUALIF}\s*)?{_SUM_TRIB})?",
     re.I)
 # tribunal antes do número: "Súmula STJ 83", "Súmula do STJ nº 83"
 RE_SUMULA_TRIB_ANTES = re.compile(
     rf"(?<![A-Za-zÀ-ÿ]){_SUMULA}(?:\s+(?P<vinc>{fuzzy('vinculante')}))?\s+(?:{DO}\s+)?{_SUM_TRIB}"
-    rf"\s*,?\s*(?:{_MARCADOR}\s*)?(?P<num>\d{{1,4}})(?![\d.]\d)",
+    rf"\s*,?\s*(?:{_MARCADOR}\s*)?(?P<num>{_NUM_SUMULA})",
     re.I)
 
 _TEMA_QUALIF = (rf"(?:\s+(?:{frase('repetitivo')}|(?-i:RG)|{frase('de repercussão geral')}|{frase('da repercussão geral')}"

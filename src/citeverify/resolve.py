@@ -111,7 +111,7 @@ def _numerada(c: Candidata, kb: KB) -> Decisao | None:
 
 def _sumula(c: Candidata, kb: KB) -> Decisao:
     g = c.grupos
-    num = int(g["num"])
+    num = int(digitos(g["num"]) or 0)
     if g.get("outro"):     # súmula de TJ/TRF/TRT/TRE/TNU/TCU: fora da base, nunca real
         return _d("inventada", "jurisprudencia", None, "sumula_outro_tribunal")
     vinc = bool(g.get("vinc") or g.get("sv"))
