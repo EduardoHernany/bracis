@@ -44,13 +44,17 @@ def main() -> None:
     from citeverify.laya_s1 import TriagemLaya
     itens = [json.loads(x) for x in open(RAIZ / "out" / "laya" / "eval.jsonl", encoding="utf-8")]
     rng = random.Random(a.seed)
-    # amostra estratificada: todo o dev; no hd/adv, todas as B e as frases sem cobertura do S1, mais uma amostra
+    # amostra estratificada: todo o dev; em hd e adv, partes iguais de A, B e C (C = frases sem citação),
+    # para que precisão e taxa de escalonamento tenham negativos de verdade
     dev = [x for x in itens if x["conjunto"] == "dev"]
-    resto = [x for x in itens if x["conjunto"] != "dev"]
-    prior = [x for x in resto if x["rotulo"] == "B" or (not x["s1_cobre"] and x["rotulo"] == "A")]
-    outros = [x for x in resto if x not in prior]
-    rng.shuffle(outros)
-    amostra = dev + prior[: a.n // 2] + outros[: max(0, a.n - len(dev) - min(len(prior), a.n // 2))]
+    amostra = list(dev)
+    por_conj = max(1, (a.n - len(dev)) // 2)
+    for pref in ("hd", "adv"):
+        grupo = [x for x in itens if x["conjunto"].startswith(pref)]
+        for rot in "ABC":
+            lst = [x for x in grupo if x["rotulo"] == rot]
+            rng.shuffle(lst)
+            amostra += lst[: por_conj // 3]
     t0 = time.time()
     tri = TriagemLaya(a.modelo, limiar=a.limiar, threads=a.threads)
     carga = time.time() - t0
