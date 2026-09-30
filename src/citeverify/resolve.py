@@ -34,6 +34,7 @@ CONF = {
     "s2_inventada": 0.8,
     "s2_incompleta": 0.8,
     "s2_vaga": 0.8,
+    "s1_vaga": 0.8,
 }
 CONF_PRIORI = dict(CONF)
 try:

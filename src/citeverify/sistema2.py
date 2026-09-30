@@ -154,12 +154,10 @@ def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Can
     return None
 
 
-def aplicar(texto: str, kb: KB, cands: list[Candidata], s2, vagas: bool, s1=None) -> list[tuple[Candidata, Decisao]]:
+def aplicar(texto: str, kb: KB, cands: list[Candidata], s2, vagas: bool) -> list[tuple[Candidata, Decisao]]:
     """Escala as frases suspeitas, pede os trechos ao LLM e devolve só as decisões novas, sem sobreposição."""
     ocupados = [(c.inicio, c.fim) for c in cands]
     frases = escalar(texto, ocupados, vagas)
-    if s1 is not None:                                   # triagem neural opcional (Laya): filtra as escaladas
-        frases = [f for f in frases if s1.suspeita(texto[f[0]:f[1]])]
     novas = []
     for a, b in frases:
         for trecho in s2.extrair(texto[a:b].replace("\n", " ")):

@@ -101,3 +101,28 @@ def test_s2_respeita_numero_proprio_e_ato_atacado(kb):
          "O acórdão recorrido diverge frontalmente do que assentado na origem.")
     duble = Duble({"Nos autos": ["processo nº 7914012-80.2011.6.01.8633"], "O acórdão": ["acórdão recorrido"]})
     assert processar("t", t, kb, s2=duble, vagas=True)["citacoes"] == []
+
+
+class DubleLaya:
+    """Faz o papel do Laya: P(B) alta para frases com a palavra-chave."""
+    limiar_b = 0.9
+
+    def __init__(self, chave):
+        self.chave = chave
+
+    def probabilidades(self, frases):
+        return [{"A": 0.0, "B": 0.95, "C": 0.05} if self.chave in f else {"A": 0.0, "B": 0.1, "C": 0.9} for f in frases]
+
+
+def test_laya_vaga_so_na_convencao_v(kb):
+    t = CORPO + "Não por acaso, o entendimento remansoso deste Sodalício é reiteradamente invocado nesta Corte."
+    s1 = DubleLaya("remansoso")
+    assert processar("t", t, kb, s1=s1)["citacoes"] == []                       # convenção R: ignora o S1 neural
+    c = processar("t", t, kb, s1=s1, vagas=True, debug=True)["citacoes"]
+    assert [(x["trecho"], x["_regra"]) for x in c] == [("entendimento remansoso deste Sodalício", "s1_vaga")]
+
+
+def test_laya_nao_pega_ato_atacado_nem_frase_sem_fonte(kb):
+    t = CORPO + "O acórdão recorrido diverge frontalmente da prova dos autos. A leitura conjunta conduz ao provimento."
+    s1 = DubleLaya("")                                                          # sinaliza tudo como vaga
+    assert processar("t", t, kb, s1=s1, vagas=True)["citacoes"] == []

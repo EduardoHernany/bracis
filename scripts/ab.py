@@ -54,7 +54,7 @@ def main() -> None:
         from citeverify.laya_s1 import TriagemLaya
         s1 = TriagemLaya(a.s1)
     linhas = ["| conjunto | variante | gabarito | score | N1 macroF1 | N2 macroF1 | τ | FP | FN | classe errada "
-              "| S2 certas | S2 erradas | chamadas LLM | s |", "|" + "---|" * 14]
+              "| neurais certas | neurais erradas | chamadas LLM | s |", "|" + "---|" * 14]
     for nome, pasta, gold in conjuntos(a.sets):
         for v in variantes:
             toks = set(v.split("+"))
@@ -75,10 +75,10 @@ def main() -> None:
                 for gg, p in pares:
                     ok = acertou(gg, p)
                     cls += not ok
-                    if p["regra"].startswith("s2_"):
+                    if p["regra"].startswith(("s1_", "s2_")):
                         s2_ok += ok
                         s2_err += not ok
-                s2_err += sum(p["regra"].startswith("s2_") for p in espurias)
+                s2_err += sum(p["regra"].startswith(("s1_", "s2_")) for p in espurias)
             nv = r["niveis"]
             tau = max(d["tau"] for d in nv.values())
             linha = (f"| {nome} | {v} | {'V' if vagas else 'R'} | {r['score_final']:.5f} "

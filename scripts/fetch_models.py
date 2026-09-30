@@ -1,6 +1,6 @@
 """Baixa os pesos das camadas opcionais (S1 Laya, S2 Qwen) na revisão fixada em models.lock.json.
 
-Uso:  python scripts/fetch_models.py [s1|s2|all] [--dir models]
+Uso:  python scripts/fetch_models.py [s1|s1_ft|s2|all] [--dir models]
 
 Cada arquivo com hash no lock é conferido por sha256; divergência aborta.
 Exige `huggingface_hub` (requirements-ml.txt). O pipeline padrão não usa nada disto.
@@ -37,11 +37,11 @@ def baixar(nome: str, spec: dict, destino: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("quais", nargs="?", default="all", choices=["s1", "s2", "all"])
+    ap.add_argument("quais", nargs="?", default="all", choices=["s1", "s1_ft", "s2", "all"])
     ap.add_argument("--dir", default=str(RAIZ / "models"))
     a = ap.parse_args()
     lock = json.loads((RAIZ / "models.lock.json").read_text())
-    for nome in (["s1", "s2"] if a.quais == "all" else [a.quais]):
+    for nome in ([k for k in ("s1", "s1_ft", "s2") if k in lock] if a.quais == "all" else [a.quais]):
         baixar(nome, lock[nome], Path(a.dir))
 
 

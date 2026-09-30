@@ -127,9 +127,16 @@ def rodar_variantes(entrada: Path, db: Path, saida: Path, release: Path,
     # V+S2 (opcional): só se a release tiver o S2 e houver o env ML e o GGUF; roda depois de R e V (é mais lento)
     gguf = RAIZ / "models" / "s2" / "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
     py_ml = Path(os.environ.get("CITEVERIFY_ML_PY", Path.home() / "miniforge3/envs/citeverify-ml/bin/python"))
-    if tem_vagas and "--s2" in run.read_text(encoding="utf-8") and gguf.exists() and py_ml.exists():
-        variantes.append(("VS2", ["--vagas", "--s2", str(gguf), "--s2-gpu-layers", os.environ.get("S2_GPU_LAYERS", "-1"),
-                                  "--s2-cache", str(RAIZ / "out" / "blind" / "s2_cache.jsonl")], str(py_ml)))
+    s1_ft = RAIZ / "models" / "s1_ft"
+    codigo = run.read_text(encoding="utf-8")
+    s2_args = ["--s2", str(gguf), "--s2-gpu-layers", os.environ.get("S2_GPU_LAYERS", "-1"),
+               "--s2-cache", str(RAIZ / "out" / "blind" / "s2_cache.jsonl")]
+    if tem_vagas and "--s1" in codigo and (s1_ft / "model.safetensors").exists() and py_ml.exists():
+        variantes.append(("VS1", ["--vagas", "--s1", str(s1_ft)], str(py_ml)))            # Laya em CPU, rápido
+        if "--s2" in codigo and gguf.exists():
+            variantes.append(("VS1S2", ["--vagas", "--s1", str(s1_ft), *s2_args], str(py_ml)))  # melhor no A/B
+    elif tem_vagas and "--s2" in codigo and gguf.exists() and py_ml.exists():
+        variantes.append(("VS2", ["--vagas", *s2_args], str(py_ml)))
     res = []
     for nome, extra, python in variantes:
         destino = saida / nome
@@ -171,7 +178,13 @@ def escrever_status(saida: Path, cabecalho: list[str], res: list[dict], release:
         for r in prontas:
             linhas.append(f"KAGGLE_TOKEN=... python3 scripts/kaggle.py submit {r['csv'].relative_to(RAIZ)} "
                           f"\"citeverify v2 {r['variante']}\"")
-        linhas += ["```", "", "VS2 (V + Sistema 2/LLM) só vale se o LB mostrar que a convenção V é a certa.",
+        publicado = "s1_ft" in json.loads((RAIZ / "models.lock.json").read_text())
+        linhas += ["```", "",
+                   "VS1 (V + Laya) e VS1S2 (V + Laya + LLM) só valem se o LB mostrar que a convenção V é a certa.",
+                   ("Os pesos do Laya ajustado estão publicados (models.lock.json → s1_ft)." if publicado else
+                    "**ATENÇÃO: o Laya ajustado ainda NÃO foi publicado no HF — as regras exigem pesos públicos com "
+                    "revisão fixa. Não submeta VS1/VS1S2 antes de rodar `hf auth login` e "
+                    "`python scripts/publish_laya.py`.**"),
                    "Depois compare R e V no LB público: V − R > 0,02 → o gabarito inclui as frases vagas;",
                    "R − V > 0,02 → não inclui; diferença menor → selecione as duas."]
     status = saida / "STATUS.md"

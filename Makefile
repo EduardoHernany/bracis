@@ -2,7 +2,7 @@ PY ?= python3
 TXT ?= data/txt
 OUT ?= out/final
 
-.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models adv calib reproduce-llm ab
+.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models adv calib reproduce-llm ab publish-laya
 
 # baixa os dados da competição (exige KAGGLE_TOKEN no ambiente)
 data:
@@ -28,7 +28,12 @@ reproduce-llm:
 
 # A/B das camadas (regras × +S2) nas convenções R e V → out/ab/report.md
 ab:
-	$(PY) scripts/ab.py --variants rules,vagas,s2,vagas+s2 --sets dev,st1,hd11,adv21-24 --s2 $(GGUF) --s2-gpu-layers $(GPU_LAYERS)
+	$(PY) scripts/ab.py --variants rules,s2,vagas,vagas+s2,vagas+s1,vagas+s1+s2 --sets dev,st1,hd11,adv21-24 \
+	  --s2 $(GGUF) --s2-gpu-layers $(GPU_LAYERS) --s1 models/s1_ft
+
+# publica o Laya ajustado (models/s1_ft) no HF e fixa a revisão em models.lock.json (exige `hf auth login`)
+publish-laya:
+	$(PY) scripts/publish_laya.py
 
 # confere as frases vagas contra as lacunas de citacao_id do gabarito (17 no N1, 16 no N2)
 vagas-check:
