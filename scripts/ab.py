@@ -36,6 +36,8 @@ def main() -> None:
     ap.add_argument("--s2-gpu-layers", type=int, default=0)
     ap.add_argument("--s2-threads", type=int, default=6)
     ap.add_argument("--s2-cache", default=str(RAIZ / "out" / "s2_cache.jsonl"))
+    ap.add_argument("--s2-somente-cache", action="store_true",
+                    help="não carrega o LLM: usa só as respostas já em cache (frase fora do cache → nenhuma)")
     ap.add_argument("--s1", default=None)
     ap.add_argument("--md", default=str(RAIZ / "out" / "ab" / "report.md"))
     ap.add_argument("--db", default=str(RAIZ / "data" / "desafio1_bracis.db"))
@@ -46,7 +48,8 @@ def main() -> None:
     if any("s2" in v for v in variantes):
         from citeverify.llm import carregar_sistema2
         s2 = carregar_sistema2(a.s2, n_gpu_layers=a.s2_gpu_layers, n_threads=a.s2_threads,
-                               cache=None if a.s2_cache == "none" else a.s2_cache)
+                               cache=None if a.s2_cache == "none" else a.s2_cache,
+                               somente_cache=a.s2_somente_cache)
     if any("s1" in v for v in variantes):
         from citeverify.laya_s1 import TriagemLaya
         s1 = TriagemLaya(a.s1)
@@ -83,6 +86,8 @@ def main() -> None:
                      f"| {tau:.4f} | {fp} | {fn} | {cls} | {s2_ok} | {s2_err} | {(s2.chamadas - antes) if s2 else 0} | {dt:.0f} |")
             linhas.append(linha)
             print(linha, flush=True)
+    if s2 is not None and hasattr(s2, "faltas"):
+        print(f"frases fora do cache: {s2.faltas}")
     Path(a.md).parent.mkdir(parents=True, exist_ok=True)
     Path(a.md).write_text("\n".join(linhas) + "\n", encoding="utf-8")
     print(f"→ {a.md}")

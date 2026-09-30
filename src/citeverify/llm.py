@@ -104,8 +104,27 @@ class Sistema2:
         return itens
 
 
+class Sistema2Cache:
+    """Só lê o cache de um Sistema2 (mesma chave), sem carregar o modelo: reavalia o pós-processamento
+    (gatilhos, ancoragem, decisão) em segundos. Frase fora do cache → [] e conta em `faltas`."""
+    def __init__(self, cache: str | Path, gguf_sha: str, n_gpu_layers: int = -1, n_threads: int = 6):
+        self.id_modelo = f"{gguf_sha}|{'gpu' if n_gpu_layers else 'cpu'}|{n_threads}"
+        self.cache = {}
+        for linha in Path(cache).read_text(encoding="utf-8").splitlines():
+            item = json.loads(linha)
+            self.cache[item["k"]] = item["v"]
+        self.chamadas = self.faltas = 0
+
+    def extrair(self, frase: str) -> list[str]:
+        k = hashlib.sha256(f"{PROMPT_VERSAO}|{self.id_modelo}|{frase}".encode("utf-8")).hexdigest()
+        if k not in self.cache:
+            self.faltas += 1
+            return []
+        return self.cache[k]
+
+
 def carregar_sistema2(model_path: str | Path, n_gpu_layers: int = 0, n_threads: int = 6,
-                      cache: str | Path | None = None) -> Sistema2:
+                      cache: str | Path | None = None, somente_cache: bool = False):
     """Confere o GGUF pelo tamanho contra models.lock.json (o sha256 é conferido por scripts/fetch_models.py)."""
     raiz = Path(__file__).resolve().parents[2]
     sha = None
@@ -113,4 +132,6 @@ def carregar_sistema2(model_path: str | Path, n_gpu_layers: int = 0, n_threads: 
     if lock.exists():
         spec = json.loads(lock.read_text())["s2"]
         sha = spec["files"].get(Path(model_path).name)
+    if somente_cache:
+        return Sistema2Cache(cache, sha, n_gpu_layers=n_gpu_layers, n_threads=n_threads)
     return Sistema2(model_path, n_gpu_layers=n_gpu_layers, n_threads=n_threads, cache=cache, gguf_sha=sha)
