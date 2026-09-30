@@ -80,7 +80,7 @@ adv:
 
 # recalibra a confiança por regra (grava src/citeverify/conf_calibrada.py)
 calib:
-	$(PY) scripts/calibrate.py --sets dev,devV,st1-8,hd11-13,adv21-24
+	$(PY) scripts/calibrate.py --sets dev,devV,st1-8,hd11-13,adv21-24 --sets-v st1-8,hd11-13,adv21-24
 
 test:
 	$(PY) -m pytest -q tests

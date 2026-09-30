@@ -92,11 +92,15 @@ qual convenção vale (diferença > 0,02) e essa é a selecionada para o privado
 ## Confiança calibrada
 
 `scripts/calibrate.py` mede a taxa de acerto de cada regra **nos pares casados** (a única coisa que entra no
-Brier) sobre dev, estresse e adversarial: regra sem nenhum erro em ≥ 100 pares vai a 1,0; as demais encolhem
-para o valor a priori, `(acertos + 2·p0)/(n + 2)`. Entre times perfeitos o score exato decide, e o custo de
-errar com 1,0 em vez de 0,999 é ~1e-4 por par. Resultado (`src/citeverify/conf_calibrada.py`):
-11 regras, todas com 100% de acerto (ex.: `real_unico` 4905/4905, `inventada_ausente` 2479/2479,
-`real_desempate` 56/56 → 0,9948). Dev: **1.10000**.
+Brier) sobre dev, estresse e adversarial (e, para as regras de frase vaga, também contra os gabaritos V): regra
+sem nenhum erro em ≥ 50 pares vai a 1,0; as demais encolhem para o valor a priori, `(acertos + 2·p0)/(n + 2)`.
+Resultado (`src/citeverify/conf_calibrada.py`): as 13 regras observadas acertaram 100% (ex.: `real_unico`
+4905/4905, `inventada_ausente` 2479/2479, `real_desempate` 56/56, `vaga` 2013/2013, `s1_vaga` 132/132,
+`s2_vaga` 196/196) e ficam em 1,0. Score exato no dev: **1.1000000000** (R e V).
+
+Por que 1,0 e não 0,999: o Kaggle **trunca** o score exibido (1.0999999806 aparece como 1.09999), e entre times
+perfeitos só o score exato decide — o empate exato vai para a submissão mais antiga. Se a regra errar, a
+diferença de Brier entre 1,0 e 0,999 é ~1e-5, desprezível diante do custo do erro no F1.
 
 ## Avaliação (métrica oficial, `vendor/kaggle_metric.py`)
 
