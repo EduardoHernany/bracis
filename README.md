@@ -235,10 +235,10 @@ do cache):
     "copiou" um exemplo do próprio prompt, e a re-ancoragem literal rejeitou.
   - Por isso a família V ganhou as variantes **VS1** (V + Laya, só CPU) e **VS1S2** (V + Laya + LLM). A variante
     R não muda.
-- **Condição das regras.** Os pesos ajustados precisam estar publicados com revisão fixa antes de qualquer
-  submissão que os use (`hf auth login` com token de escrita + `python scripts/publish_laya.py`, que cria
-  `EduardoHYM/citeverify-laya-s1` e grava a revisão em `models.lock.json`). O card do modelo está em
-  `docs/MODEL_CARD_laya_s1.md`.
+- **Condição das regras — cumprida.** Pesos ajustados publicados em
+  [`EduardoHYM/citeverify-laya-s1`](https://huggingface.co/EduardoHYM/citeverify-laya-s1) (Apache-2.0), com a
+  revisão fixada em `models.lock.json`; `python scripts/fetch_models.py s1_ft` baixa essa revisão e confere o
+  sha256. O card do modelo está em `docs/MODEL_CARD_laya_s1.md`.
 - **Leitura honesta.** O ganho vem de frases vagas *inéditas*, escritas pelo nosso gerador adversarial. Se o
   conjunto cego usar só os moldes do dev, as variantes empatam com a V; nos conjuntos com esses moldes não houve
   nenhuma mudança.
