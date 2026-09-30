@@ -29,6 +29,11 @@ CONF = {
     "incompleta": 0.97,
     "incompleta_parcial": 0.8,
     "vaga": 0.97,
+    # Sistema 2 (LLM): propostas re-ancoradas e decididas pelas mesmas regras
+    "s2_real": 0.9,
+    "s2_inventada": 0.8,
+    "s2_incompleta": 0.8,
+    "s2_vaga": 0.8,
 }
 CONF_PRIORI = dict(CONF)
 try:

@@ -13,14 +13,20 @@ def ler_texto(caminho: str | Path) -> str:
         return f.read()
 
 
-def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas: bool = False) -> dict:
-    """vagas=True também emite as frases vagas ("jurisprudência pacífica desta Corte") como `incompleta`."""
+def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas: bool = False,
+              s2=None, s1=None) -> dict:
+    """vagas=True também emite as frases vagas ("jurisprudência pacífica desta Corte") como `incompleta`.
+    s2 (Sistema2, opcional): LLM que propõe trechos nas frases que o S1 não resolveu; s1 (opcional): triagem
+    neural que filtra quais frases vão ao LLM."""
     citacoes = []
     cands = extrair(texto)
     if vagas:
         cands += extrair_vagas(texto, [(c.inicio, c.fim) for c in cands])
-    for c in cands:
-        d = decidir(c, kb)
+    decisoes = [(c, decidir(c, kb)) for c in cands]
+    if s2 is not None:
+        from .sistema2 import aplicar
+        decisoes += aplicar(texto, kb, [c for c, d in decisoes if d is not None], s2, vagas, s1)
+    for c, d in decisoes:
         if d is None:
             continue
         item = {
