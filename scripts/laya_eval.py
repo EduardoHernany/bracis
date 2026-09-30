@@ -56,7 +56,7 @@ def main() -> None:
             rng.shuffle(lst)
             amostra += lst[: por_conj // 3]
     t0 = time.time()
-    tri = TriagemLaya(a.modelo, limiar=a.limiar, threads=a.threads)
+    tri = TriagemLaya(a.modelo, threads=a.threads)
     carga = time.time() - t0
     frases = [x["state"] for x in amostra]
     t0 = time.time()
