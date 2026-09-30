@@ -1,0 +1,23 @@
+# Camadas OPCIONAIS (Sistema 2 = LLM Qwen3-4B; Sistema 1 neural = triagem Laya). O pipeline padrão
+# (make reproduce) usa só a biblioteca padrão do Python e não precisa de nada deste arquivo.
+#
+# Instalação (Python 3.12):
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch==2.14.0
+#   pip install -r requirements-ml.txt --no-deps
+#   # llama-cpp-python compilado da fonte, com instruções portáveis (a roda pronta do índice cu124 exige AVX-512):
+#   CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_AVX2=on -DGGML_FMA=on -DGGML_F16C=on" \
+#     pip install --no-binary llama-cpp-python llama-cpp-python==0.3.35
+#   # com GPU NVIDIA, acrescente -DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=<sm da placa> ao CMAKE_ARGS
+#
+# Pesos (revisão e sha256 fixados em models.lock.json):  python scripts/fetch_models.py all
+llama-cpp-python==0.3.35
+diskcache==5.6.3
+Jinja2==3.1.6
+transformers==5.17.0
+tokenizers==0.23.2
+safetensors==0.8.0
+huggingface_hub==1.33.0
+laya==0.3.22
+numpy==2.5.3
+pandas==3.0.6
+pytest==9.1.1

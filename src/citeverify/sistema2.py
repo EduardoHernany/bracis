@@ -134,7 +134,8 @@ def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Can
         c = Candidata(ini, fim, "incompleta", {}, 2)
         return c, _d("incompleta", "jurisprudencia", None, "s2_incompleta")
     # 4) referência vaga (só na convenção V)
-    if vagas and _NUCLEO_SIMPLES.search(trecho) and 2 <= len(trecho.split()) <= 14:
+    # como as frases vagas do gabarito: sintagma nominal curto (até 8 palavras), sem vírgula (não é descrição)
+    if vagas and _NUCLEO_SIMPLES.search(trecho) and 2 <= len(trecho.split()) <= 8 and "," not in trecho:
         tipo = "lei" if re.search(r"(?i)dispositiv|\blei|legisla|norma|artigo|preceito|diploma|c[óo]digo", trecho) \
             else "jurisprudencia"
         c = Candidata(ini, fim, "vaga", {"tipo": tipo}, 0)

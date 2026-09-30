@@ -1,0 +1,25 @@
+# Imagem das camadas opcionais (S2 = LLM Qwen3-4B, S1 = triagem Laya). A imagem padrão (Dockerfile) basta
+# para o pipeline só-regras. Esta compila o llama-cpp-python para CPU, com instruções portáveis (AVX2/FMA),
+# para que a saída não dependa da máquina. Variante GPU: base nvidia/cuda:12.4.1-devel-ubuntu22.04 e
+# CMAKE_ARGS com -DGGML_CUDA=on.
+#
+#   docker build -f Dockerfile.llm -t citeverify-llm .
+#   docker run --rm -v "$PWD/data:/app/data:ro" -v "$PWD/models:/app/models" -v "$PWD/out:/app/out" citeverify-llm
+FROM python:3.12.8-slim
+
+ENV PYTHONHASHSEED=0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=6
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake make git \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements-ml.txt .
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.14.0 \
+    && CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_AVX2=on -DGGML_FMA=on -DGGML_F16C=on" \
+       pip install --no-cache-dir --no-binary llama-cpp-python llama-cpp-python==0.3.35 \
+    && pip install --no-cache-dir --no-deps -r requirements-ml.txt
+COPY . .
+
+# os pesos vão em /app/models (volume); fetch_models.py baixa na revisão fixada e confere o sha256
+CMD ["sh", "-c", "python scripts/fetch_models.py s2 && make reproduce-llm PY=python"]

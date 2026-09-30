@@ -2,7 +2,7 @@ PY ?= python3
 TXT ?= data/txt
 OUT ?= out/final
 
-.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models adv calib
+.PHONY: data reproduce reproduce-vagas dev stress test clean vagas-check kb-audit blind-watch fetch-models adv calib reproduce-llm ab
 
 # baixa os dados da competição (exige KAGGLE_TOKEN no ambiente)
 data:
@@ -18,6 +18,17 @@ reproduce:
 reproduce-vagas:
 	$(PY) scripts/run.py $(TXT) $(OUT)-vagas --vagas
 	sha256sum $(OUT)-vagas/submission.csv
+
+# variante com o Sistema 2 (LLM de pesos abertos; exige requirements-ml.txt e `make fetch-models`)
+GGUF ?= models/s2/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+GPU_LAYERS ?= 0
+reproduce-llm:
+	$(PY) scripts/run.py $(TXT) $(OUT)-llm --s2 $(GGUF) --s2-gpu-layers $(GPU_LAYERS) --s2-cache none
+	sha256sum $(OUT)-llm/submission.csv
+
+# A/B das camadas (regras × +S2) nas convenções R e V → out/ab/report.md
+ab:
+	$(PY) scripts/ab.py --variants rules,vagas,s2,vagas+s2 --sets dev,st1,hd11,adv21-24 --s2 $(GGUF) --s2-gpu-layers $(GPU_LAYERS)
 
 # confere as frases vagas contra as lacunas de citacao_id do gabarito (17 no N1, 16 no N2)
 vagas-check:

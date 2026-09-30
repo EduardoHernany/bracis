@@ -3,3 +3,5 @@ out/
 .git/
 __pycache__/
 .pytest_cache/
+release/
+models/
