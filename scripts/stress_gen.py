@@ -18,6 +18,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
+sys.path.insert(0, str(RAIZ / "scripts"))
 from citeverify.kb import carregar  # noqa: E402
 
 UF_NOME = {"ACRE": "AC", "ALAGOAS": "AL", "AMAPÁ": "AP", "AMAZONAS": "AM", "BAHIA": "BA", "CEARÁ": "CE",
@@ -379,15 +380,27 @@ def main() -> None:
     ap.add_argument("--out", default=str(RAIZ / "out" / "stress"))
     ap.add_argument("--db", default=str(RAIZ / "data" / "desafio1_bracis.db"))
     ap.add_argument("--hard", type=int, default=1)
+    ap.add_argument("--adv", action="store_true", help="moldes, distratores e ruídos novos (stress_adv.py)")
+    ap.add_argument("--vagas-gold", default=None,
+                    help="CSV das frases vagas do dev (out/vagas/vagas_dev.csv): também grava gold_V.csv")
     a = ap.parse_args()
     global HARD
     HARD = a.hard
     rng = random.Random(a.seed)
     ger = Gerador(a.db, rng)
+    adv = None
+    if a.adv:
+        from citeverify.extract import zona_cabecalho
+        from stress_adv import Adv
+        adv = Adv(ger, random.Random(a.seed * 1000 + 17))
+    vagas = {}
+    if a.vagas_gold:
+        for r in csv.DictReader(open(a.vagas_gold, encoding="utf-8")):
+            vagas.setdefault(r["documento_id"], []).append((int(r["inicio"]), int(r["fim"]), r["tipo"]))
     gold = list(csv.DictReader(open(RAIZ / "data" / "goldenset_offsets.csv", encoding="utf-8-sig")))
     out = Path(a.out)
     (out / "txt").mkdir(parents=True, exist_ok=True)
-    linhas = []
+    linhas, linhas_v = [], []
     for txt_path in sorted((RAIZ / "data" / "txt").glob("*.txt")):
         doc = txt_path.stem
         original = open(txt_path, encoding="utf-8", newline="").read()
@@ -395,12 +408,54 @@ def main() -> None:
         nivel = int(cits[0]["nivel"]) if cits else (2 if "_n2_" in doc else 1)
         ruido = nivel == 2
         for k in range(a.n):
-            novo, desloc, gid = [], 0, []
+            novo, gid, gid_v = [], [], []
+
+            def pos() -> int:
+                return sum(len(x) for x in novo)
+
+            def copiar(ini: int, fim: int, inserir: bool = False) -> None:
+                """Copia original[ini:fim] (levando as frases vagas); no --adv, pode inserir uma frase nova."""
+                corte = None
+                if inserir and adv and adv.rng.random() < 0.35:
+                    bordas = [m.end() for m in re.finditer(r"\. (?=[A-ZÁÉÍÓÚ])", original[ini:fim])]
+                    bordas = [ini + b - 1 for b in bordas
+                              if not any(s <= ini + b <= e for s, e, _ in vagas.get(doc, []))]
+                    corte = adv.rng.choice(bordas) if bordas else None
+                partes = [(ini, corte), (corte, fim)] if corte else [(ini, fim)]
+                for j, (x, y) in enumerate(partes):
+                    base = pos()
+                    for s_, e_, tipo_ in vagas.get(doc, []):
+                        if x <= s_ and e_ <= y:
+                            gid_v.append((base + s_ - x, base + e_ - x, original[s_:e_], tipo_, "incompleta", ""))
+                    novo.append(original[x:y])
+                    if j == 0 and corte:
+                        nova()
+
+            def nova() -> None:
+                """Frase com slot inédito: citação renderizada ou frase vaga inédita (esta só no gabarito V)."""
+                sorteio = adv.rng.random()
+                cit = None
+                if sorteio < 0.6:
+                    gerar = adv.rng.choice([ger.real, ger.real, ger.inventada, ger.incompleta, ger.lei_real])
+                    cit = gerar(ruido)
+                frase, i0, i1, (tipo_, classe_, ids_) = adv.frase_nova(cit)
+                base = pos()
+                alvo = gid if cit else gid_v
+                alvo.append((base + i0, base + i1, frase[i0:i1], tipo_, classe_, ids_))
+                novo.append(frase)
+
             cursor = 0
+            if adv:
+                cab, own = adv.cabecalho()
+                novo.append(cab)
+                cursor = zona_cabecalho(original)
+                vistos_autos = adv.rng.random() < 0.5
             for g in cits:
                 ini, fim = int(g["inicio"]), int(g["fim"])
-                novo.append(original[cursor:ini])
-                pos = sum(len(x) for x in novo)
+                copiar(cursor, ini, inserir=True)
+                if adv and vistos_autos and ini > cursor:
+                    novo.append(adv.frase_autos(own))
+                    vistos_autos = False
                 classe = g["classificacao"]
                 if classe == "real" and g["tipo"] == "lei":
                     t, tipo, cl, ids = ger.lei_real(ruido)
@@ -412,22 +467,34 @@ def main() -> None:
                     t, tipo, cl, ids = ger.inventada(ruido)
                 else:
                     t, tipo, cl, ids = ger.incompleta(ruido)
+                if adv:
+                    t, tipo, cl, ids = adv.variante(t, tipo, cl, ids, ruido)
+                p0 = pos()
                 novo.append(t)
-                gid.append((pos, pos + len(t), t, tipo, cl, ids))
+                gid.append((p0, p0 + len(t), t, tipo, cl, ids))
                 cursor = fim
-            novo.append(original[cursor:])
+            copiar(cursor, len(original), inserir=True)
+            if adv:
+                novo.append(adv.fecho())
             texto = "".join(novo)
             nome = f"{doc}_s{k}"
             (out / "txt" / f"{nome}.txt").write_text(texto, encoding="utf-8", newline="")
-            for i, (s, e, t, tipo, cl, ids) in enumerate(gid):
-                assert texto[s:e] == t
-                linhas.append({"nivel": nivel, "documento_id": nome, "citacao_id": f"g{i}", "inicio": s, "fim": e,
-                               "trecho": t, "tipo": tipo, "classificacao": cl, "id_canonico": ids})
+            for destino, itens in ((linhas, gid), (linhas_v, sorted(gid + gid_v))):
+                for i, (s, e, t, tipo, cl, ids) in enumerate(sorted(itens)):
+                    assert texto[s:e] == t, (nome, t)
+                    destino.append({"nivel": nivel, "documento_id": nome, "citacao_id": f"g{i}", "inicio": s,
+                                    "fim": e, "trecho": t, "tipo": tipo, "classificacao": cl, "id_canonico": ids})
     with open(out / "gold.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(linhas[0]))
         w.writeheader()
         w.writerows(linhas)
-    print(f"{out}: {len(list((out / 'txt').glob('*.txt')))} documentos, {len(linhas)} citações")
+    if a.vagas_gold:
+        with open(out / "gold_V.csv", "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(linhas_v[0]))
+            w.writeheader()
+            w.writerows(linhas_v)
+    print(f"{out}: {len(list((out / 'txt').glob('*.txt')))} documentos, {len(linhas)} citações"
+          + (f" ({len(linhas_v)} na convenção V)" if a.vagas_gold else ""))
 
 
 if __name__ == "__main__":

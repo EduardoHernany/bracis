@@ -21,27 +21,41 @@ OCR_DIGITO = {
 _LET = "OoQDlIi|!SsgqBGbZz"
 _LETRA = r"A-Za-zÀ-ÿ"
 
-# um "caractere de número": dígito, ou letra-OCR colada a um dígito e sem letra do outro lado
-_CH = (rf"(?:\d|(?<=\d)[{re.escape(_LET)}](?![{_LETRA}])"
-       rf"|(?<![{_LETRA}])[{re.escape(_LET)}](?=\d))")
-# separadores que o gerador usa dentro do número: . - – — espaço e quebra de linha
-_SEP = r"(?:[ \t]*[.\-–—][ \t]*(?:\n[ \t]*)?(?:[.\-–—][ \t]*(?:\n[ \t]*)?)?|[ \t]*\n[ \t]*|[ \t]{1,2})"
+# espaços horizontais (inclusive NBSP e espaços finos) e hífens (inclusive o não-quebrável e o sinal de menos)
+H = r"[ \t\u00a0\u2007\u202f]"
+_HIFENS = "\u2010\u2011\u2012\u2013\u2014\u2212"
+_D = rf"[.\-{_HIFENS}]"
+# um "caractere de número": dígito, ou sequência curta (até 3) de letras-OCR colada a um dígito — ou a
+# separador + dígito — sem letra comum do outro lado ("7BO-27" → 780-27, "8gg24" → 89924)
+_RUN = rf"[{re.escape(_LET)}]{{1,3}}"
+_CH = (rf"(?:\d|(?<=\d){_RUN}(?![{_LETRA}])"
+       rf"|(?<![{_LETRA}]){_RUN}(?=\d)"
+       rf"|(?<![{_LETRA}\d]){_RUN}(?={_D}\d))")
+CH = _CH
+# separadores que o gerador usa dentro do número: . e hífens, espaço e quebra de linha (antes ou depois do separador)
+_NL = rf"(?:\n{H}*)?"
+_SEP = rf"(?:{H}*{_NL}{_D}{H}*{_NL}(?:{_D}{H}*{_NL})?|{H}*\n{H}*|{H}{{1,2}})"
 NUMERO = rf"{_CH}+(?:{_SEP}{_CH}+)*"
 RE_NUMERO = re.compile(NUMERO)
 
 
 def digitos(trecho: str) -> str:
-    """Só os dígitos do trecho, com letras-OCR convertidas."""
-    out = []
-    for i, ch in enumerate(trecho):
-        if ch.isdigit():
-            out.append(ch)
-        elif ch in OCR_DIGITO:
-            ant = trecho[i - 1] if i > 0 else ""
-            prox = trecho[i + 1] if i + 1 < len(trecho) else ""
-            if ant.isdigit() or prox.isdigit():
-                out.append(OCR_DIGITO[ch])
-    return "".join(out)
+    """Só os dígitos do trecho, com letras-OCR convertidas quando coladas a um dígito (diretamente, via outra
+    letra-OCR convertida, ou antes de separador + dígito)."""
+    n = len(trecho)
+    num = [ch.isdigit() for ch in trecho]
+    mudou = True
+    while mudou:
+        mudou = False
+        for i, ch in enumerate(trecho):
+            if num[i] or ch not in OCR_DIGITO:
+                continue
+            vizinho = (i > 0 and num[i - 1]) or (i + 1 < n and num[i + 1])
+            antes_sep = (i + 2 < n and trecho[i + 1] in ".-" + _HIFENS and trecho[i + 2].isdigit()
+                         and not (i > 0 and trecho[i - 1].isalpha()))
+            if vizinho or antes_sep:
+                num[i], mudou = True, True
+    return "".join(ch if ch.isdigit() else OCR_DIGITO[ch] for ch, ok in zip(trecho, num) if ok)
 
 
 def chave_cnj(d: str) -> str | None:

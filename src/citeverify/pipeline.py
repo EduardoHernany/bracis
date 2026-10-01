@@ -4,6 +4,7 @@ from pathlib import Path
 from .extract import extrair
 from .kb import KB
 from .resolve import decidir
+from .vagas import extrair_vagas
 
 
 def ler_texto(caminho: str | Path) -> str:
@@ -12,10 +13,28 @@ def ler_texto(caminho: str | Path) -> str:
         return f.read()
 
 
-def processar(documento_id: str, texto: str, kb: KB, debug: bool = False) -> dict:
+def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas: bool = False,
+              s2=None, s1=None) -> dict:
+    """vagas=True também emite as frases vagas ("jurisprudência pacífica desta Corte") como `incompleta`.
+    s2 (Sistema2, opcional): LLM que propõe trechos nas frases que o S1 não resolveu; s1 (TriagemLaya, opcional):
+    classificador por frase — com s2, aponta ao LLM as frases com citação identificada não cobertas (R e V); com
+    vagas=True, aponta referências vagas, delimitadas por regra."""
     citacoes = []
-    for c in extrair(texto):
-        d = decidir(c, kb)
+    cands = extrair(texto)
+    if vagas:
+        cands += extrair_vagas(texto, [(c.inicio, c.fim) for c in cands])
+    decisoes = [(c, decidir(c, kb)) for c in cands]
+    if s2 is not None:
+        from .sistema2 import aplicar
+        extras = None
+        if s1 is not None:                     # Laya → LLM: frases com citação identificada que as regras não cobriram
+            from .laya_s1 import frases_identificadas
+            extras = frases_identificadas(texto, [(c.inicio, c.fim) for c, d in decisoes if d is not None], s1)
+        decisoes += aplicar(texto, kb, [c for c, d in decisoes if d is not None], s2, vagas, extras)
+    if s1 is not None and vagas:
+        from .laya_s1 import vagas_neurais
+        decisoes += vagas_neurais(texto, [(c.inicio, c.fim) for c, d in decisoes if d is not None], s1)
+    for c, d in decisoes:
         if d is None:
             continue
         item = {
@@ -31,4 +50,14 @@ def processar(documento_id: str, texto: str, kb: KB, debug: bool = False) -> dic
             item["_regra"] = d.regra
             item["_kind"] = c.kind
         citacoes.append(item)
-    return {"documento_id": documento_id, "citacoes": citacoes}
+    return {"documento_id": documento_id, "citacoes": sem_sobreposicao(citacoes)}
+
+
+def sem_sobreposicao(citacoes: list[dict]) -> list[dict]:
+    """Rede de segurança: duas predições sobrepostas (IoU >= 0,5) invalidam a submissão inteira."""
+    out: list[dict] = []
+    for c in sorted(citacoes, key=lambda c: (c["inicio"], -c["fim"])):
+        if out and c["inicio"] < out[-1]["fim"]:
+            continue
+        out.append(c)
+    return out
