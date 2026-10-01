@@ -248,6 +248,7 @@ mão (`scripts/laya_extra.py`), com moldes e frases vagas disjuntos dos do adver
 
 | Ref | Data (UTC) | Versão (tag) | sha256 do CSV | Score público |
 |---|---|---|---|---|
+| 56740589 | 2026-10-01 01:34 | **R + Laya v2 + Qwen3-14B Q4_K_M** (`v11-qwen14b`; 24 de 40 camadas na GPU de 8 GB, 4m47s no dev) | `f89bcf50…` | **1.10000** |
 | 56740072 | 2026-10-01 01:1x | **R + Laya v2 + Qwen3-4B** (`v10-laya-llm`): o Laya aponta frases com citação identificada não cobertas, o LLM propõe o trecho, regras/KB decidem | `f89bcf50…` | **1.10000** |
 | 56720793 | 2026-09-30 22:57 | R, confiança 1,0 por evidência (`v8-calib`) | `f89bcf50…` | **1.10000** |
 | 56698832 | 2026-09-30 05:58 | R, confiança calibrada (`v7-laya`) | `57f6055e…` | 1.09999 |
