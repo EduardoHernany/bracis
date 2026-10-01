@@ -37,7 +37,7 @@ def baixar(nome: str, spec: dict, destino: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("quais", nargs="?", default="all", choices=["s1", "s1_ft", "s2", "all"])
+    ap.add_argument("quais", nargs="?", default="all", choices=["s1", "s1_ft", "s2", "s2_14b", "all"])
     ap.add_argument("--dir", default=str(RAIZ / "models"))
     a = ap.parse_args()
     lock = json.loads((RAIZ / "models.lock.json").read_text())

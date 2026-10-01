@@ -130,8 +130,8 @@ def carregar_sistema2(model_path: str | Path, n_gpu_layers: int = 0, n_threads: 
     sha = None
     lock = raiz / "models.lock.json"
     if lock.exists():
-        spec = json.loads(lock.read_text())["s2"]
-        sha = spec["files"].get(Path(model_path).name)
+        for spec in json.loads(lock.read_text()).values():
+            sha = sha or spec.get("files", {}).get(Path(model_path).name)
     if somente_cache:
         return Sistema2Cache(cache, sha, n_gpu_layers=n_gpu_layers, n_threads=n_threads)
     return Sistema2(model_path, n_gpu_layers=n_gpu_layers, n_threads=n_threads, cache=cache, gguf_sha=sha)
