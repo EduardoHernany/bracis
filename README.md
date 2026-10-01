@@ -244,6 +244,18 @@ mão (`scripts/laya_extra.py`), com moldes e frases vagas disjuntos dos do adver
   conjunto cego usar só os moldes do dev, as variantes empatam com a V; nos conjuntos com esses moldes não houve
   nenhuma mudança.
 
+## Submissões no Kaggle (leaderboard público = amostra de desenvolvimento)
+
+| Ref | Data (UTC) | Versão (tag) | sha256 do CSV | Score público |
+|---|---|---|---|---|
+| 56720793 | 2026-09-30 22:57 | R, confiança 1,0 por evidência (`v8-calib`) | `f89bcf50…` | **1.10000** |
+| 56698832 | 2026-09-30 05:58 | R, confiança calibrada (`v7-laya`) | `57f6055e…` | 1.09999 |
+| 56654716 | 2026-09-28 23:36 | v0.1 só regras (validação de formato) | — | 1.09993 |
+
+O Kaggle trunca o score exibido: a submissão 56698832 tinha score exato 1.0999999806 (uma predição de desempate
+com confiança 0,9948) e aparece como 1.09999. A v8 tem score exato 1.1000000000. O ranking final sai do conjunto
+cego; até 30/09 21h35 BRT ele não havia sido publicado.
+
 ## Conjunto cego: vigia e runbook
 
 `scripts/blind.py watch` consulta a árvore de dados do Kaggle a cada 2 min. Quando o conjunto cego aparece,
