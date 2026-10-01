@@ -135,6 +135,7 @@ def rodar_variantes(entrada: Path, db: Path, saida: Path, release: Path,
         variantes.append(("VS1", ["--vagas", "--s1", str(s1_ft)], str(py_ml)))            # Laya em CPU, rápido
         if "--s2" in codigo and gguf.exists():
             variantes.append(("VS1S2", ["--vagas", "--s1", str(s1_ft), *s2_args], str(py_ml)))  # melhor no A/B
+            variantes.append(("RS1S2", ["--s1", str(s1_ft), *s2_args], str(py_ml)))  # R com Laya → LLM
     elif tem_vagas and "--s2" in codigo and gguf.exists() and py_ml.exists():
         variantes.append(("VS2", ["--vagas", *s2_args], str(py_ml)))
     res = []

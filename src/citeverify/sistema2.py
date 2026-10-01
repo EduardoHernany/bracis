@@ -154,10 +154,12 @@ def decidir_s2(texto: str, ini: int, fim: int, kb: KB, vagas: bool) -> tuple[Can
     return None
 
 
-def aplicar(texto: str, kb: KB, cands: list[Candidata], s2, vagas: bool) -> list[tuple[Candidata, Decisao]]:
-    """Escala as frases suspeitas, pede os trechos ao LLM e devolve só as decisões novas, sem sobreposição."""
+def aplicar(texto: str, kb: KB, cands: list[Candidata], s2, vagas: bool,
+            extras: list[tuple[int, int]] | None = None) -> list[tuple[Candidata, Decisao]]:
+    """Escala as frases suspeitas (gatilhos determinísticos ∪ `extras`, as frases que o Laya sinalizou), pede os
+    trechos ao LLM e devolve só as decisões novas, sem sobreposição."""
     ocupados = [(c.inicio, c.fim) for c in cands]
-    frases = escalar(texto, ocupados, vagas)
+    frases = sorted(set(escalar(texto, ocupados, vagas)) | set(extras or []))
     novas = []
     for a, b in frases:
         for trecho in s2.extrair(texto[a:b].replace("\n", " ")):

@@ -63,6 +63,17 @@ class TriagemLaya:
         return [r["answers"]["cita"]["probabilities"] for r in res]
 
 
+def frases_identificadas(texto: str, ocupados: list[tuple[int, int]], s1: TriagemLaya,
+                         limiar_a: float = 0.5) -> list[tuple[int, int]]:
+    """Papel do Laya na convenção R (Sistema 1 → Sistema 2): frases fora do cabeçalho e não cobertas pelas regras
+    em que P(A) — citação identificada — passa do limiar. Vão ao LLM, que propõe o trecho; as regras decidem."""
+    fim_cab = zona_cabecalho(texto)
+    alvo = [(a, b) for a, b in segmentar(texto)
+            if a >= fim_cab and not _TITULO.match(texto[a:b]) and not any(a < f and i < b for i, f in ocupados)]
+    probs = s1.probabilidades([texto[a:b].replace("\n", " ") for a, b in alvo])
+    return [f for f, p in zip(alvo, probs) if p.get("A", 0.0) >= limiar_a]
+
+
 def vagas_neurais(texto: str, ocupados: list[tuple[int, int]], s1: TriagemLaya) -> list[tuple[Candidata, Decisao]]:
     """Frases fora do cabeçalho, não cobertas e com núcleo de fonte: se o Laya der P(B) >= limiar, o primeiro
     sintagma nominal de fonte (2–8 palavras, sem dígito, que não seja o ato atacado) vira `incompleta`."""

@@ -16,8 +16,9 @@ def ler_texto(caminho: str | Path) -> str:
 def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas: bool = False,
               s2=None, s1=None) -> dict:
     """vagas=True também emite as frases vagas ("jurisprudência pacífica desta Corte") como `incompleta`.
-    s2 (Sistema2, opcional): LLM que propõe trechos nas frases que o S1 não resolveu; s1 (TriagemLaya, opcional,
-    só com vagas=True): classificador por frase que aponta referências vagas, delimitadas por regra."""
+    s2 (Sistema2, opcional): LLM que propõe trechos nas frases que o S1 não resolveu; s1 (TriagemLaya, opcional):
+    classificador por frase — com s2, aponta ao LLM as frases com citação identificada não cobertas (R e V); com
+    vagas=True, aponta referências vagas, delimitadas por regra."""
     citacoes = []
     cands = extrair(texto)
     if vagas:
@@ -25,7 +26,11 @@ def processar(documento_id: str, texto: str, kb: KB, debug: bool = False, vagas:
     decisoes = [(c, decidir(c, kb)) for c in cands]
     if s2 is not None:
         from .sistema2 import aplicar
-        decisoes += aplicar(texto, kb, [c for c, d in decisoes if d is not None], s2, vagas)
+        extras = None
+        if s1 is not None:                     # Laya → LLM: frases com citação identificada que as regras não cobriram
+            from .laya_s1 import frases_identificadas
+            extras = frases_identificadas(texto, [(c.inicio, c.fim) for c, d in decisoes if d is not None], s1)
+        decisoes += aplicar(texto, kb, [c for c, d in decisoes if d is not None], s2, vagas, extras)
     if s1 is not None and vagas:
         from .laya_s1 import vagas_neurais
         decisoes += vagas_neurais(texto, [(c.inicio, c.fim) for c, d in decisoes if d is not None], s1)
