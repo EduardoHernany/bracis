@@ -51,6 +51,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(RAIZ / "out" / "laya"))
     ap.add_argument("--n-train", type=int, default=3000)
+    ap.add_argument("--extra", type=int, default=0,
+                    help="frases extras de laya_extra.py (moldes/frases vagas disjuntos do adversarial)")
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
     out = Path(a.out)
@@ -80,6 +82,13 @@ def main() -> None:
             extra.append(it)
             i += 1
         amostra += base + extra
+    if a.extra:
+        import laya_extra
+        from stress_gen import Gerador
+        ger = Gerador(str(RAIZ / "data" / "desafio1_bracis.db"), random.Random(a.seed + 99))
+        n_b, n_a = int(a.extra * 0.45), int(a.extra * 0.3)
+        amostra += [{"state": t, "rotulo": r} for t, r in
+                    laya_extra.gerar(ger, random.Random(a.seed + 7), n_a, n_b, a.extra - n_a - n_b)]
     rng.shuffle(amostra)
     with open(out / "train.jsonl", "w", encoding="utf-8") as f:
         for it in amostra:

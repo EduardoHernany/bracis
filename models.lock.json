@@ -21,14 +21,14 @@
   },
   "s1_ft": {
     "repo": "EduardoHYM/citeverify-laya-s1",
-    "revision": "98eb619b52e8586061af7d04e41364bfec8c7b51",
+    "revision": "4b3f359d7a576998356b9a535a532377db1ec912",
     "license": "apache-2.0",
     "base": {
       "repo": "convaiinnovations/laya-multilingual",
       "revision": "e4e9ddf21a7b1903b7acffd8814ad4307bf63a67"
     },
     "files": {
-      "model.safetensors": "6de36740cce1042e9dc33d9dc416e735a5ef12cad3112f8b1d165f3bcf4d901a",
+      "model.safetensors": "69ede80c7d11ade23834c0a2995e48a69274efdd9aebe0b067cc678d076a6a13",
       "tokenizer/tokenizer.json": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f",
       "tokenizer/tokenizer_config.json": null,
       "encoder/config.json": null,

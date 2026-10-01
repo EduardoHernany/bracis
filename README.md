@@ -194,10 +194,10 @@ iguais do ruído pesado e do adversarial; P(cita) = P(A) + P(B), limiar 0,5):
 
 | | zero-shot | ajustado (dev) | ajustado (ruído pesado) | ajustado (**adversarial**, slots e frases inéditos) |
 |---|---|---|---|---|
-| acurácia 3 classes | 0,25 (0,11 no dev) | 1,000 | 0,998 | **0,915** |
-| precisão / recall de "cita" | 0,47 / 0,94 | 1,000 / 1,000 | 1,000 / 0,997 | **0,989 / 0,904** |
-| ECE (15 faixas) | 0,26 (0,48 no dev) | 0,000 | 0,002 | **0,072** |
-| recall das frases que o S1 não cobre | — | 1,000 | 1,000 | **0,808** |
+| acurácia 3 classes | 0,25 (0,11 no dev) | 1,000 | 0,998 | **0,915** (v2: **0,979**) |
+| precisão / recall de "cita" | 0,47 / 0,94 | 1,000 / 1,000 | 1,000 / 0,997 | **0,989 / 0,904** (v2: **0,997 / 0,972**) |
+| ECE (15 faixas) | 0,26 (0,48 no dev) | 0,000 | 0,002 | **0,072** (v2: **0,021**) |
+| recall das frases que o S1 não cobre | — | 1,000 | 1,000 | **0,808** (v2: **0,943**) |
 | frases sem cobertura do S1 sinalizadas | 96% (não filtra nada) | 4,4% | — | — |
 | latência por frase (CPU) | 529 ms (2 threads) | 109 ms (6 threads) | | |
 | determinismo (2 passadas) | Δp máx = 0 | Δp máx = 0 | | |
@@ -216,16 +216,17 @@ iguais do ruído pesado e do adversarial; P(cita) = P(A) + P(B), limiar 0,5):
 - **O papel de "filtro das frases que vão ao LLM"** também foi medido. Ele só perderia recall (0,81 nas frases
   residuais), sem nenhum falso positivo para evitar, pois o S2 já tem 0. Por isso foi descartado.
 
-**A/B na convenção V** (`out/ab/report_s1.md`; τ = 0 e **nenhum falso positivo** em todas as linhas; S2 lido
-do cache):
+**A/B na convenção V** (`out/ab/report_s1.md`, `out/ab/report_s1v2.md`; τ = 0 e **nenhum falso positivo** em
+todas as linhas; S2 lido do cache). A **v2** do Laya foi treinada com 1.200 frases extras de um banco escrito à
+mão (`scripts/laya_extra.py`), com moldes e frases vagas disjuntos dos do adversarial:
 
-| Conjunto | V: regras | V + S2 (LLM) | V + Laya | V + Laya + S2 | frases vagas recuperadas (Laya + S2) |
-|---|---|---|---|---|---|
-| dev, st1, hd11 | 1.10000 | 1.10000 | 1.10000 | 1.10000 | 0 (não há o que recuperar) |
-| adversarial 21 | 1.03202 | 1.06132 | 1.06680 | **1.08142** | 96 de 136 |
-| adversarial 22 | 1.03553 | 1.06791 | 1.07359 | **1.08777** | 97 de 124 |
-| adversarial 23 | 1.04601 | 1.07415 | 1.07484 | **1.08602** | 75 de 103 |
-| adversarial 24 | 1.05360 | 1.07060 | 1.08184 | **1.08554** | 60 de 90 |
+| Conjunto | V: regras | V + S2 (LLM) | V + Laya v1 | V + Laya v1 + S2 | V + Laya v2 | **V + Laya v2 + S2** |
+|---|---|---|---|---|---|---|
+| dev, st1, hd11 | 1.10000 | 1.10000 | 1.10000 | 1.10000 | 1.10000 | 1.10000 |
+| adversarial 21 | 1.03202 | 1.06132 | 1.06680 | 1.08142 | 1.08974 | **1.09538** |
+| adversarial 22 | 1.03553 | 1.06791 | 1.07359 | 1.08777 | 1.09116 | **1.09704** |
+| adversarial 23 | 1.04601 | 1.07415 | 1.07484 | 1.08602 | 1.09311 | **1.09659** |
+| adversarial 24 | 1.05360 | 1.07060 | 1.08184 | 1.08554 | 1.09336 | **1.09464** |
 
 - **Decisão.** O Laya ajustado cumpre o critério de adoção: ganho em dados não vistos, sem falso positivo novo e
   com τ = 0.

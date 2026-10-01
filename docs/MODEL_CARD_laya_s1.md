@@ -50,24 +50,25 @@ A pergunta precisa ser exatamente essa (instrução e critérios), pois foi a us
 
 - Script oficial do Laya: `research/scripts/finetune_single_device.py` (RLCD), commit `6d942c9` de
   `NandhaKishorM/laya`; 2 épocas, seed 0, CPU, ~1 h. Temperatura ajustada numa fatia separada (choice = 1,0).
-- Dados: 2.400 frases (840 A, 600 B, 960 C) de documentos sintéticos de estresse derivados da amostra de
-  desenvolvimento da competição, com rótulos tirados dos gabaritos. Os dados **não** são publicados, porque
-  derivam dos dados da competição.
+- Dados (v2): 3.600 frases — 2.400 (840 A, 600 B, 960 C) de documentos sintéticos de estresse derivados da
+  amostra de desenvolvimento da competição, com rótulos dos gabaritos, mais 1.200 de um banco escrito à mão
+  (`scripts/laya_extra.py`: moldes e frases vagas disjuntos dos do conjunto adversarial de avaliação, e negativos
+  difíceis). Os dados derivados da competição **não** são publicados.
 
 ## Avaliação (amostra estratificada de 2.099 frases; P(cita) = P(A) + P(B), limiar 0,5)
 
 | | zero-shot (base) | ajustado: dev* | ajustado: ruído pesado* | ajustado: adversarial (inédito) |
 |---|---|---|---|---|
-| acurácia 3 classes | 0,25 | 1,000 | 0,998 | 0,915 |
-| precisão / recall de "cita" | 0,47 / 0,94 | 1,000 / 1,000 | 1,000 / 0,997 | 0,989 / 0,904 |
-| ECE (15 faixas) | 0,26 | 0,000 | 0,002 | 0,072 |
+| acurácia 3 classes | 0,25 | 1,000 | 1,000 | 0,979 (v1: 0,915) |
+| precisão / recall de "cita" | 0,47 / 0,94 | 1,000 / 1,000 | 1,000 / 1,000 | 0,997 / 0,972 (v1: 0,989 / 0,904) |
+| ECE (15 faixas) | 0,26 | 0,000 | 0,001 | 0,021 (v1: 0,072) |
 
 \* corpos de frase vistos no treino (otimista); o conjunto adversarial tem moldes e frases vagas inéditos.
-Latência: ~109 ms por frase em CPU (6 threads, fp32). Determinismo: probabilidades idênticas em duas passadas.
+Latência: ~110–180 ms por frase em CPU (fp32). Determinismo: probabilidades idênticas em duas passadas.
 
-No pipeline (convenção em que frases vagas contam como `incompleta`), a camada recuperou 53–68 frases vagas
-inéditas por conjunto adversarial de 104 documentos, sem nenhum falso positivo, e não mudou nada nos conjuntos
-com os moldes de desenvolvimento.
+No pipeline (convenção em que frases vagas contam como `incompleta`), a v2 recuperou 77–113 frases vagas
+inéditas por conjunto adversarial de 104 documentos (v1: 53–68), sem nenhum falso positivo, e não mudou nada nos
+conjuntos com os moldes de desenvolvimento.
 
 ## Limitações
 
